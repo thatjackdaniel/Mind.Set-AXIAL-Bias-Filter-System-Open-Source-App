@@ -1,124 +1,181 @@
-# AXIAL
-## Adversarial Narrative Defusal Engine & Signal Audit Framework
-> **Classification:** Technical Systems Design Whitepaper  
-> **Status:** Core Version: Axial-1.0.4  
-> **Repository Model:** Open Source / Distributed GitHub Node  
+# AXIAL // White Paper & Technical User Manual
+## Decentralized Adversarial Narrative Defusal Engine & Secure Gateway Node Architecture
+> **Document Classification:** Cryptographic Systems & Semantic Security Specification  
+> **Core Version:** Axial-v1.0.4  
+> **Status:** Released Node Deployment  
 
 ---
 
 ### I. Abstract
-AXIAL addresses the semantic drift, biased cognitive priming, and institutional framing prevalent in distributed news syndication, journalism, and enterprise reports. Operating as a decentralized, zero-trust adversarial pre-processing layer, AXIAL intercepts arbitrary incoming text streams (lexical signals) and subjects them to highly granular structural auditing. 
 
-By mapping high-order semantic vectors, highlighting linguistic "magic words," identifying logical fallacies, and plotting narrative heatmaps, AXIAL reconstructs a dry, strictly objective baseline signal. This whitepaper outlines the architectural standards, cryptographic boundary locks, state logic, and deep language processing pipeline powering AXIAL’s mobile subsystem.
+Distributed media syndication, institutional journalism, and corporate press updates are heavily saturated with structural bias, semantic priming, and defensive public relations posturing. These biases distort public information spaces and manipulate cognitive patterns through linguistic "magic words" (loaded adjectives) and logical fallacies. 
+
+**AXIAL** is designed to defuse these narrative vectors. It acts as a zero-trust, adversarial pre-processing layer that intercepts, audits, and neutralizes raw text signals. By mapping semantic clusters, isolating structural boundaries, and rewriting prose in dry, objective, metrics-driven language, AXIAL establishes a neutral, informative baseline.
+
+This document serves as the official **Systems White Paper and Operations Manual** for the AXIAL mobile node subsystem. It details our transition from vulnerable, direct client-side generative REST calls to an decoupled, highly secure server-side API Gateway Proxy topology, solving critical reverse-engineering exposure vulnerabilities in client deployments.
 
 ---
 
-### II. Core Operational Protocols
+### II. The Reverse-Engineering Threat Model & Secure Routing Transition
 
-The AXIAL synthesis engine operates sequentially across four discrete processing phases to guarantee complete contextual purity.
+#### 1. Legacy Architecture Vulnerability
+In previous iterations (Legacy Model), raw mobile nodes communicated directly with Google Generative Language endpoints using a client-managed API key. While straightforward, this design presented severe operational hazards:
+* **Obfuscation Limits:** Even with advanced compiler-level optimization, ProGuard rules, and Keystore storage, runtime API keys stored or entered on mobile clients are vulnerable to dynamic dump attacks and system-level interceptions.
+* **APK Decompilation:** Malicious actors who obtain compiled Android APK packages can run reverse-engineering tools (e.g., `apktool`, `jadx`) to reconstruct compiled variables, intercepting proprietary default AI keys from compiled bytecode frameworks.
+* **Rate-Limit Exhaustion:** Exposed developer keys can quickly be harvested, resulting in immediate exhaustion of rate quotas and unauthorized operational costs.
+
+#### 2. The API Gateway Proxy Secure Topology
+AXIAL v1.0.4 resolves these vulnerabilities by deprecating direct client REST configurations in favor of a **Secure Server-Side API Gateway Proxy** integration mode.
 
 ```
-       [ INCOMING TEXT SIGNAL ]
-                  │
-                  ▼
-   1. [ PROTOCOL_BORDER_LOCK ]  ───► (Strips layout widgets, advertising anchors)
-                  │
-                  ▼
-   2. [ SIGNAL_IDLE EVALUATION ] ──► (Screens standard math, recipes & factual lists)
-                  │
-                  ▼
-   3. [ PROTOCOL_LEXICAL_AUDIT ] ──► (Identifies Fallacies, Bias Vectors & Priming)
-                  │
-                  ▼
-   4. [ PROTOCOL_SIGNAL_SYNTHESIS ] ─► (Neutralizes prose, compiles Sentiment Flow)
-                  │
-                  ▼
-      [ PERSISTED DATABASE LEDGER ]
++------------------------------------------------------------------------------------------------+
+|                                    GATEWAY PROXY TOPOLOGY                                      |
++------------------------------------------------------------------------------------------------+
+
+                            Direct REST Mode (Decompile Vulnerable)
+  ┌─────────────────┐             Client API Key Over Query              ┌──────────────────┐
+  │   AXIAL Node    │ ─────────────────────────────────────────────────► │ Google Gemini REST│
+  └─────────────────┘                                                    │ (Direct Endpoint)│
+                                                                         └──────────────────┘
+                            Secure API Gateway Proxy Mode (Decoupled)
+  ┌─────────────────┐  Analyze Payload + Bearer JWT   ┌───────────────┐     Formulates System    ┌──────────────────┐
+  │   AXIAL Node    │ ──────────────────────────────► │  API Gateway  │ ───────────────────────► │ Google Gemini REST│
+  │  (No Google Key)│                                 │ (Server-Side) │  Injects Secret Key     │  (Secure Cloud)  │
+  └─────────────────┘                                 └───────────────┘                          └──────────────────┘
 ```
 
-#### 1. [ PROTOCOL_BORDER_LOCK ]
-Incoming raw text signals harvested from web resources, syndication feeds, or clipboard states are often polluted with non-central visual, structural, and commercial components. The Border Lock protocol isolates the central core narrative content and strips:
-* Sponsored advertising placements
-* Institutional social metrics and widgets
-* Layout-related sidebar links & metadata
-* Interactive clickbait anchors
-
-#### 2. [ SIGNAL_IDLE ] (Boundary Rule Bypass)
-To prevent processing system overload and false-positive auditing, AXIAL integrates a factual exemption engine. When raw signals match high-certainty scientific specifications, physical constants, mathematical equations, software source code, or standard procedural recipes, the systems flags the diagnostic state as `SIGNAL_IDLE` with immediate reason documentation, halting the downstream adversarial scanner.
-
-#### 3. [ PROTOCOL_LEXICAL_AUDIT ]
-When a narrative signal is verified active, it is scrutinized across several narrative alignment markers:
-* **Political Framing Intensity (`0–100`):** Evaluation of ideological grooming, partisan alignment, state-doctrine priming, and structural framing.
-* **Corporate Guarding Intensity (`0–100`):** Recognition of PR protective language, institutional liabilities shielding, greenwashing, and defensive market framing.
-* **Linguistic Priming Isolation:** Dynamic search matching highly subjective adjectives (termed "magic words") with dry, metric-driven impartial substitutions.
-* **Evidence Log Array:** Structured mapping of source citations to detected narrative framing tactics and formal logical fallacy categorizations (such as *Appeal to Fear*, *False Dilemma*, *Ad Hominem*, or *Corporate Guarding*).
-
-#### 4. [ PROTOCOL_SIGNAL_SYNTHESIS ]
-In the final step, the audited signal is subjected to dry factual rewriting and structural mapping:
-* **Factual Neutralization:** Re-drafting the text stream in cold, scientific language stripped entirely of rhetorical priming, subjective coloring, or emotion-inducing cadences.
-* **Integrity Guard Summary:** A concise, highly representative summary of original central claims to preserve information parity while eliminating bias.
-* **Tactical Sentiment Flow Analysis:** Segment-by-segment chronological recording of rhetorical engagement levels and tone vectors across the document layout, providing graphic analyst readouts.
+Under this decoupled architecture:
+1. **Encapsulation:** The Google Gemini API credential is kept entirely offline, resident in the server-side gateway environment variables.
+2. **Authorization:** Mobile clients authorize via a short-lived **JSON Web Token (JWT) Bearer Token** issued by the systems administrator. The node passes this token in the header of POST transactions.
+3. **Payload Sanitization:** The client sends the raw semantic signal. The server-side API Gateway securely formats the model prompts, binds the structural target JSON schema, injects system instructions, and proxies the query to the generative backend.
+4. **Resiliency:** Should a node JWT be leaked, administrators can instantly revoke individual tokens at the gateway level without needing to roll out or regenerate the primary Google API keys.
 
 ---
 
 ### III. System Architecture & Component Mapping
 
-AXIAL is built upon modern Android platform guidelines to ensure sub-second response times, offline-first structural reliability, and reactive data streams.
+The AXIAL ecosystem is partitioned into clear, reactive operational layers utilizing the Model-View-ViewModel (MVVM) software design pattern:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                       Jetpack Compose UI                    │
+|                       Jetpack Compose UI                    │
 ├──────────────────────────────┬──────────────────────────────┤
-│  Signal Intake UI (Scanner) │  Database Ledger (History)  │
+│  Signal Intake UI (Scanner)  │   Database Ledger (History)  │
 └──────────────┬───────────────┴───────────────▲──────────────┘
                │                               │
                ▼                               │
 ┌──────────────────────────────────────────────┴──────────────┐
-│                    ViewModel & State Flows                  │
+│                  ViewModel & State Flows                     │
 └──────────────────────────────┬──────────────────────────────┘
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      AxialRepository                        │
 ├──────────────────────────────┬──────────────────────────────┤
-│         Gemini API           │        Room Database         │
-│     (REST RESTful Core)      │     (Local SQL Ledger)       │
+│        Retrofit Client       │        Room Database         │
+│  (Direct API / Secure Gate)   │     (Local SQL Ledger)       │
 └──────────────────────────────┴──────────────────────────────┘
 ```
 
-#### 1. Persistence Subsystem (Room DB Ledger)
-All successfully mapped and audited signals are committed to a localized SQLite engine via Android's Room Persistence library. This architecture guarantees:
-* **Failsafe Historic Audits:** Instant local lookup of previous analysis configurations.
-* **Transactional Reliability:** Direct data stream binding using Kotlin `Flow` patterns tracking structural changes in real-time.
-* **Clean Purging Protocols:** A centralized ledger purge process to handle data hygiene demands.
+#### 1. Repository Routing Engine (`AxialRepository`)
+The repository evaluates the active system `integration_mode` from local hardware shared preferences on every execution:
+* **`DIRECT_REST` Mode:** Coordinates queries directly to Google's endpoints. Uses user overrides or compiled `BuildConfig` keys.
+* **`SECURE_GATEWAY` Mode:** Directs requests to the custom configured reverse gateway proxy URL. It replaces key query parameters with a standard `Authorization: Bearer <token>` header payload.
 
-#### 2. Reactive Presentation Layer (MVVM & Compose)
-* **Jetpack Compose:** Devoiced from legacy XML schemas, the UI utilizes direct, single-pass coordinate compilation conforming to Material Design 3 guidelines.
-* **Sophisticated Dark Aesthetic:** Pure `#050505` canvases framed by `#1F1F1F` borders, high-contrast `#00FF41` active indices, and `#E5E5E7` typographic accents minimizing physical strain under active watch conditions.
-* **StateFlow Coherence:** ViewModels project read-only state interfaces preventing concurrent write hazards or race conditions.
+#### 2. Network Interface Core (`RetrofitClient` & `GatewayApiService`)
+Network transactions are managed using the Square Retrofit interface library paired with an asynchronous OkHttpClient backplane.
+The gateway service defines two distinct transactional protocols to accommodate varying proxy capabilities:
+
+* **Method A (Parsing Broker):**
+  For advanced gateways that host the AI prompt and target schemas server-side, reducing client-side logic. The client transmits a lightweight direct payload map containing only the target text stream. The gateway processes the transaction and returns a direct `AxialAnalysisResult` instance.
+  ```kotlin
+  @POST fun analyzeWithDirectPayload(
+      @Url url: String,
+      @Header("Authorization") authHeader: String,
+      @Body payload: Map<String, String>
+  ): AxialAnalysisResult
+  ```
+
+* **Method B (Transport Broker):**
+  For pure routing gateways that act as an authentication, rate-limiting, and key-injection loop to proxy raw Gemini queries securely. The client compiles the `GeminiRequest` itself, and receives a validated `GeminiResponse` stream transit.
+  ```kotlin
+  @POST fun analyzeWithStandardProxy(
+      @Url url: String,
+      @Header("Authorization") authHeader: String,
+      @Body request: GeminiRequest
+  ): GeminiResponse
+  ```
 
 ---
 
-### IV. Technical Specification & Implementation Guide
+### IV. Core Semantic Protocols
 
-* **SDK Requirements:** `minSdk = 26`, `targetSdk = 34`
-* **Primary Language:** Kotlin `v1.9+`
-* **Dependency Tree (Core):**
-  * Core Architecture: AndroidX Lifecycle, ViewModel Compose, Flow integration
-  * Database Engine: SQLite mapped by Android Jetpack Room with Kotlin Symbol Processing (`KSP`)
-  * Networking: Retrofit HTTP client with OkHttp interceptor setups
-  * Serialization: Kotlinx-Serialization JSON compiler plugin alignment
-  * Test Framework: JUnit 4, Robolectric headless JVM, Roborazzi screenshot verification
+When processing a validated active signal, the AXIAL Core Engine executes four sequential protocols to ensure contextual integrity:
+
+#### 1. [ PROTOCOL_BORDER_LOCK ]
+Raw inputs harvested from web sweeps, RSS streams, or system clipboards are stripped of non-central noise elements:
+- Sponsoring advertising banners and promotional hooks.
+- Extraneous metadata and cross-reference links.
+- Social sharing hooks and layout-related tracking parameters.
+
+#### 2. [ SIGNAL_IDLE ] Evaluation
+To minimize processing resources and prevent downstream false-positive alarms, inputs are put through a localized syntax screener. If the text consists purely of natural science constants, mathematics, source code (Kotlin/C/Python), or standard declarative recipes, the engine triggers a `SIGNAL_IDLE` bypass. It outputs a bypass reason and suspends downstream narrative auditing.
+
+#### 3. [ PROTOCOL_LEXICAL_AUDIT ]
+Active signals are subjected to strict parsing across three primary narrative vectors:
+- **Political Bias Classification:** Tracks partisan framing intensity scores (`0-100`) and underlying ideological doctrine alignment.
+- **Corporate Shielding Audit:** Evaluates corporate protective statements, brand liability hedging, and greenwashing descriptors.
+- **Subjective Priming Isolation:** Pins emotional adjectives ("magic words") and converts them to cold, objective substitutions.
+- **Evidence Log compilation:** Formulates structured arrays mapping source-text quotes directly to verified system logical fallacies (e.g. *Appeal to Fear*, *False Dilemma*, *Ad Hominem*, or *Corporate Guarding*).
+
+#### 4. [ PROTOCOL_SIGNAL_SYNTHESIS ]
+Generates the output products:
+- **Neutralized Signal:** The original text reconstructed in dry, unbiased, cold factual prose.
+- **Integrity Guard Summary:** A concise summary of the claims, ensuring semantic parity without bias.
+- **Tactical Sentiment Flow:** Chronological tracing of conversational triggers and engagement elevations mapped visual segment-by-segment.
 
 ---
 
-### V. Security Engineering & Compliance Note
+### V. Operator Deployment Guide & User Manual
 
-As an open-source framework intended for public staging and distribution via GitHub, AXIAL enforces strict separation of code structure from live credentials. 
+To transition your AXIAL deployment node from raw direct REST client calls to the secure intermediate proxy system:
 
-#### Cryptographic Key Isolation
-Any Gemini API properties or operational secrets are parsed at build-time using the **Secrets Gradle Plugin** combined with an untracked, git-ignored local `.env` configuration file, ensuring developer endpoints cannot leak to the public repository structure.
+#### Step 1: Deploy server-side Gateway Proxy Node
+Set up a containerized or serverless hosting gateway (e.g., Node.js / Python / Go) on your secure server cloud topology. Securely bind your master Google Gemini API Key in your server's system environment variables:
+```bash
+GEMINI_API_KEY="AIzaSyYourPrimarySecureSecretKeyHost..."
+```
+Your server-side gateway should expose an endpoint (e.g., `/v1/analyze`) that takes:
+* Header: `Authorization: Bearer YOUR_GENERATED_NODE_TOKEN`
+* Body: `{"text": "..."}` or `{"contents": [...]}`
 
-> #### Security Warning & Compliance Note
-> **Security Warning: Your Gemini API key is managed securely through the Secrets panel in AI Studio and accessed in the codebase via BuildConfig. Please be aware that Android APKs can be decompiled, and embedded properties might be extracted. Do not share the generated APK file publicly to prevent potential unauthorized usage of your API properties. If preparing for an enterprise production rollout, you should transition from direct client REST calls to a secure server-side API gateway proxy.**
+The gateway forwards the request to Google's backend, performs parsing verification, and returns the audited standard `AxialAnalysisResult` payload structure.
 
-Developers compiling customized nodes for open publication are explicitly instructed to avoid hardcoding production secrets, to enforce proper reverse-engineering obfuscation policies (ProGuard/R8 rules), and to establish server-side sentinel proxies for all commercial deployments.
+#### Step 2: Open the Core Routing Console
+1. Boot the AXIAL Android interface client on target hardware.
+2. In the telemetry banner header, locate the security routing status. Under direct REST mode, it displays **`API_KEY_SEC`**. Tap this indicator button.
+3. The client will open the **Core Routing Console** dialog.
+
+#### Step 3: Toggle Routing Pipeline
+1. At the top of the console, select the **API Gateway Proxy** routing segment tab.
+2. Under **Gateway Endpoint URL**, enter the URL of your deployed secure proxy node, eg:
+   `https://gateway.axial.security/v1/analyze`
+3. Under **Authorization JWT Bearer Token**, paste the secure node access key issued by your system admin.
+4. Tap **`SAVE_CONFIGURATION`**.
+
+#### Step 4: Verify Telemetry Synchronization
+Once saved:
+- The telemetry header indicator will automatically initialize.
+- The active route state will transition to **`ACTIVE ROUTE: SECURE GATEWAY`**.
+- The main trigger diagnostic button will update its label to **`GATE_ROUTE`**.
+- All subsequent text analyses will route securely through your gateway proxy without revealing raw credentials to client memory or decompile dump analyzers.
+
+---
+
+### VI. System Configuration Specs
+
+* **Target Deployment SDK:** Android SDK API 26 (`Oreo`) to API 34 (`Android 14`).
+* **Database Ledger:** SQL Jetpack Room SQLite layer.
+* **Test Platform Specs:** Headless Unit Testing mapped via JVM Robolectric frameworks and Roborazzi visual screen capture regression tests.
+
+---
+*AXIAL Core Protocol -- Decentralizing Semantic Guardrails, Safeguarding Cognitive Sovereignty Dev-Node.*

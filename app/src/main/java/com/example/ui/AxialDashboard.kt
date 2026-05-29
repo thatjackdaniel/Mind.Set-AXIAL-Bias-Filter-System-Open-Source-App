@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,6 +51,225 @@ fun AxialDashboard(viewModel: AxialViewModel) {
     val sharedPrefs = remember { context.getSharedPreferences("axial_prefs", Context.MODE_PRIVATE) }
     var showSecurityWarningDialog by remember {
         mutableStateOf(!sharedPrefs.getBoolean("has_acknowledged_sec_warning", false))
+    }
+
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var currentSavedKey by remember {
+        mutableStateOf(sharedPrefs.getString("user_gemini_api_key", "") ?: "")
+    }
+    var integrationMode by remember {
+        mutableStateOf(sharedPrefs.getString("integration_mode", "DIRECT_REST") ?: "DIRECT_REST")
+    }
+    var gatewayProxyUrl by remember {
+        mutableStateOf(sharedPrefs.getString("gateway_proxy_url", "https://gateway.axial.security/v1/analyze") ?: "https://gateway.axial.security/v1/analyze")
+    }
+    var gatewayProxyToken by remember {
+        mutableStateOf(sharedPrefs.getString("gateway_proxy_token", "") ?: "")
+    }
+
+    val isKeyConfigured = remember(currentSavedKey, integrationMode, gatewayProxyUrl, gatewayProxyToken) {
+        if (integrationMode == "SECURE_GATEWAY") {
+            gatewayProxyUrl.isNotBlank() && gatewayProxyToken.isNotBlank() && gatewayProxyToken != "YOUR_GATEWAY_TOKEN"
+        } else {
+            currentSavedKey.isNotBlank() || (
+                com.example.BuildConfig.GEMINI_API_KEY.isNotBlank() &&
+                com.example.BuildConfig.GEMINI_API_KEY != "MY_GEMINI_API_KEY" &&
+                !com.example.BuildConfig.GEMINI_API_KEY.contains("placeholder")
+            )
+        }
+    }
+
+    if (showApiKeyDialog) {
+        var tempKey by remember { mutableStateOf(currentSavedKey) }
+        var tempMode by remember { mutableStateOf(integrationMode) }
+        var tempGateUrl by remember { mutableStateOf(gatewayProxyUrl) }
+        var tempGateToken by remember { mutableStateOf(gatewayProxyToken) }
+
+        AlertDialog(
+            onDismissRequest = { showApiKeyDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VpnKey,
+                        contentDescription = "Routing Console",
+                        tint = AxialPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Text(
+                        text = "CORE ROUTING CONSOLE",
+                        color = AxialTextPrimary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Because this is an open-source decentralized node, you can override your active network routing. Server-side proxy routing shields client endpoints from decompile threat vectors.",
+                        color = AxialTextSecondary,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+
+                    // Mode selector
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AxialBorder, RoundedCornerShape(8.dp))
+                            .background(AxialBg, RoundedCornerShape(8.dp))
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        listOf(
+                            "DIRECT_REST" to "Direct REST Client",
+                            "SECURE_GATEWAY" to "API Gateway Proxy"
+                        ).forEach { (m, label) ->
+                            val isSel = tempMode == m
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSel) AxialPrimary.copy(alpha = 0.15f) else Color.Transparent)
+                                    .border(if (isSel) BorderStroke(1.dp, AxialPrimary.copy(alpha = 0.5f)) else BorderStroke(0.dp, Color.Transparent), RoundedCornerShape(6.dp))
+                                    .clickable { tempMode = m }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSel) AxialPrimary else AxialTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    if (tempMode == "DIRECT_REST") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Direct REST integration routes analysis streams straight to Google API endpoints. Fallback local heuristic model activated if empty default.",
+                                color = AxialTextSecondary,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                            OutlinedTextField(
+                                value = tempKey,
+                                onValueChange = { tempKey = it },
+                                label = { Text("Gemini API Key override") },
+                                placeholder = { Text("AIzaSy...") },
+                                singleLine = true,
+                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = AxialTextPrimary),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AxialPrimary,
+                                    unfocusedBorderColor = AxialBorder,
+                                    focusedLabelColor = AxialPrimary,
+                                    unfocusedLabelColor = AxialTextSecondary
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("api_key_override_input")
+                            )
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = "The Secure API Gateway filters, shields, and encapsulates credentials. Mobile sessions route requests through your active sentinel broker node.",
+                                color = AxialTextSecondary,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                            
+                            OutlinedTextField(
+                                value = tempGateUrl,
+                                onValueChange = { tempGateUrl = it },
+                                label = { Text("Gateway Endpoint URL") },
+                                placeholder = { Text("https://gateway.axial.security/v1/analyze") },
+                                singleLine = true,
+                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = AxialTextPrimary),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AxialPrimary,
+                                    unfocusedBorderColor = AxialBorder,
+                                    focusedLabelColor = AxialPrimary,
+                                    unfocusedLabelColor = AxialTextSecondary
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("gateway_url_input")
+                            )
+
+                            OutlinedTextField(
+                                value = tempGateToken,
+                                onValueChange = { tempGateToken = it },
+                                label = { Text("Authorization JWT Bearer Token") },
+                                placeholder = { Text("ax_jwt_token...") },
+                                singleLine = true,
+                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = AxialTextPrimary),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AxialPrimary,
+                                    unfocusedBorderColor = AxialBorder,
+                                    focusedLabelColor = AxialPrimary,
+                                    unfocusedLabelColor = AxialTextSecondary
+                                ),
+                                modifier = Modifier.fillMaxWidth().testTag("gateway_token_input")
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        sharedPrefs.edit()
+                            .putString("integration_mode", tempMode)
+                            .putString("user_gemini_api_key", tempKey.trim())
+                            .putString("gateway_proxy_url", tempGateUrl.trim())
+                            .putString("gateway_proxy_token", tempGateToken.trim())
+                            .apply()
+                        
+                        integrationMode = tempMode
+                        currentSavedKey = tempKey.trim()
+                        gatewayProxyUrl = tempGateUrl.trim()
+                        gatewayProxyToken = tempGateToken.trim()
+                        
+                        showApiKeyDialog = false
+                    },
+                    modifier = Modifier.testTag("api_key_override_save_button")
+                ) {
+                    Text(
+                        text = "SAVE_CONFIGURATION",
+                        color = AxialPrimary,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showApiKeyDialog = false },
+                    modifier = Modifier.testTag("api_key_override_cancel_button")
+                ) {
+                    Text(
+                        text = "DISMISS",
+                        color = AxialTextSecondary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            containerColor = AxialSurfaceElevated,
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .border(BorderStroke(1.dp, AxialBorder), shape = RoundedCornerShape(24.dp))
+                .testTag("api_key_config_dialog")
+        )
     }
 
     if (showSecurityWarningDialog) {
@@ -159,7 +379,11 @@ fun AxialDashboard(viewModel: AxialViewModel) {
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            TelemetryHeader()
+            TelemetryHeader(
+                isKeyConfigured = isKeyConfigured,
+                integrationMode = integrationMode,
+                onApiKeyClick = { showApiKeyDialog = true }
+            )
             
             Divider(
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
@@ -217,7 +441,11 @@ fun AxialDashboard(viewModel: AxialViewModel) {
 }
 
 @Composable
-fun TelemetryHeader() {
+fun TelemetryHeader(
+    isKeyConfigured: Boolean,
+    integrationMode: String,
+    onApiKeyClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -239,31 +467,43 @@ fun TelemetryHeader() {
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(AxialAccent, shape = RoundedCornerShape(50))
+                        .background(if (isKeyConfigured) AxialAccent else AxialRed, shape = RoundedCornerShape(50))
                 )
                 Spacer(modifier = Modifier.width(6.dp))
+                
+                val modeLabel = if (integrationMode == "SECURE_GATEWAY") "SECURE GATEWAY" else "CLIENT DIRECT"
                 Text(
-                    text = "ACTIVE PROTOCOL ALIGNMENT [ Axial-1.0.4 ]",
+                    text = if (isKeyConfigured) "ACTIVE ROUTE: $modeLabel [ Axial-1.0.4 ]" else "PROTOCOL ENFORCEMENT PENDING [ Axial-1.0.4 ]",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
-                    color = AxialTextSecondary
+                    color = if (isKeyConfigured) AxialTextSecondary else AxialRed.copy(alpha = 0.8f)
                 )
             }
         }
         
         Box(
             modifier = Modifier
-                .border(1.dp, AxialPrimary.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                .clickable { onApiKeyClick() }
+                .border(1.dp, if (isKeyConfigured) AxialPrimary.copy(alpha = 0.3f) else AxialRed.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                 .background(AxialSurfaceElevated)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            Text(
-                text = "AGI.MIND.SET",
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 10.sp,
-                color = AxialPrimary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(
+                    imageVector = Icons.Default.VpnKey,
+                    contentDescription = "Configure Key/Gateway",
+                    tint = if (isKeyConfigured) AxialPrimary else AxialRed,
+                    modifier = Modifier.size(12.dp)
+                )
+                val btnText = if (integrationMode == "SECURE_GATEWAY") "GATE_ROUTE" else "API_KEY_SEC"
+                Text(
+                    text = btnText,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    color = if (isKeyConfigured) AxialPrimary else AxialRed
+                )
+            }
         }
     }
 }

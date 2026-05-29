@@ -9,6 +9,8 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Url
+import retrofit2.http.Header
 import java.util.concurrent.TimeUnit
 
 interface GeminiApiService {
@@ -17,6 +19,22 @@ interface GeminiApiService {
         @Query("key") apiKey: String,
         @Body request: GeminiRequest
     ): GeminiResponse
+}
+
+interface GatewayApiService {
+    @POST
+    suspend fun analyzeWithStandardProxy(
+        @Url url: String,
+        @Header("Authorization") authHeader: String,
+        @Body request: GeminiRequest
+    ): GeminiResponse
+
+    @POST
+    suspend fun analyzeWithDirectPayload(
+        @Url url: String,
+        @Header("Authorization") authHeader: String,
+        @Body payload: Map<String, String>
+    ): AxialAnalysisResult
 }
 
 object RetrofitClient {
@@ -42,6 +60,15 @@ object RetrofitClient {
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(GeminiApiService::class.java)
+    }
+
+    val gatewayService: GatewayApiService by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://gateway.axial.security/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+            .create(GatewayApiService::class.java)
     }
 
     val resultAdapter = moshi.adapter(AxialAnalysisResult::class.java)
