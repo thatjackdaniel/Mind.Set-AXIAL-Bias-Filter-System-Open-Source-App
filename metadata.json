@@ -1,6 +1,6 @@
 {
-  "name": "Axial",
-  "description": "Linguistic Impartiality Engine for parsing, analyzing, and neutralizing narrative bias in media signals.",
+  "name": "MIND.Set",
+  "description": "MIND.Set AGI Development dashboard representing dual-lobe neural coordination and linguistic intelligence analytics.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -22,7 +22,15 @@ class GreetingScreenshotTest {
 
   @Test
   fun greeting_screenshot() {
-    composeTestRule.setContent { MyApplicationTheme { TelemetryHeader() } }
+    composeTestRule.setContent {
+      MyApplicationTheme {
+        TelemetryHeader(
+          isKeyConfigured = false,
+          integrationMode = "DIRECT_REST",
+          onApiKeyClick = {}
+        )
+      }
+    }
 
     composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
   }

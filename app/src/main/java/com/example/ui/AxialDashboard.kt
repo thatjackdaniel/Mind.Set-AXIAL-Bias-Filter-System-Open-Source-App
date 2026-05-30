@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -48,310 +49,6 @@ fun AxialDashboard(viewModel: AxialViewModel) {
     val inputSignal by viewModel.inputSignal.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("axial_prefs", Context.MODE_PRIVATE) }
-    var showSecurityWarningDialog by remember {
-        mutableStateOf(!sharedPrefs.getBoolean("has_acknowledged_sec_warning", false))
-    }
-
-    var showApiKeyDialog by remember { mutableStateOf(false) }
-    var currentSavedKey by remember {
-        mutableStateOf(sharedPrefs.getString("user_gemini_api_key", "") ?: "")
-    }
-    var integrationMode by remember {
-        mutableStateOf(sharedPrefs.getString("integration_mode", "DIRECT_REST") ?: "DIRECT_REST")
-    }
-    var gatewayProxyUrl by remember {
-        mutableStateOf(sharedPrefs.getString("gateway_proxy_url", "https://gateway.axial.security/v1/analyze") ?: "https://gateway.axial.security/v1/analyze")
-    }
-    var gatewayProxyToken by remember {
-        mutableStateOf(sharedPrefs.getString("gateway_proxy_token", "") ?: "")
-    }
-
-    val isKeyConfigured = remember(currentSavedKey, integrationMode, gatewayProxyUrl, gatewayProxyToken) {
-        if (integrationMode == "SECURE_GATEWAY") {
-            gatewayProxyUrl.isNotBlank() && gatewayProxyToken.isNotBlank() && gatewayProxyToken != "YOUR_GATEWAY_TOKEN"
-        } else {
-            currentSavedKey.isNotBlank() || (
-                com.example.BuildConfig.GEMINI_API_KEY.isNotBlank() &&
-                com.example.BuildConfig.GEMINI_API_KEY != "MY_GEMINI_API_KEY" &&
-                !com.example.BuildConfig.GEMINI_API_KEY.contains("placeholder")
-            )
-        }
-    }
-
-    if (showApiKeyDialog) {
-        var tempKey by remember { mutableStateOf(currentSavedKey) }
-        var tempMode by remember { mutableStateOf(integrationMode) }
-        var tempGateUrl by remember { mutableStateOf(gatewayProxyUrl) }
-        var tempGateToken by remember { mutableStateOf(gatewayProxyToken) }
-
-        AlertDialog(
-            onDismissRequest = { showApiKeyDialog = false },
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.VpnKey,
-                        contentDescription = "Routing Console",
-                        tint = AxialPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "CORE ROUTING CONSOLE",
-                        color = AxialTextPrimary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Because this is an open-source decentralized node, you can override your active network routing. Server-side proxy routing shields client endpoints from decompile threat vectors.",
-                        color = AxialTextSecondary,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp
-                    )
-
-                    // Mode selector
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, AxialBorder, RoundedCornerShape(8.dp))
-                            .background(AxialBg, RoundedCornerShape(8.dp))
-                            .padding(2.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        listOf(
-                            "DIRECT_REST" to "Direct REST Client",
-                            "SECURE_GATEWAY" to "API Gateway Proxy"
-                        ).forEach { (m, label) ->
-                            val isSel = tempMode == m
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isSel) AxialPrimary.copy(alpha = 0.15f) else Color.Transparent)
-                                    .border(if (isSel) BorderStroke(1.dp, AxialPrimary.copy(alpha = 0.5f)) else BorderStroke(0.dp, Color.Transparent), RoundedCornerShape(6.dp))
-                                    .clickable { tempMode = m }
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSel) AxialPrimary else AxialTextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
-                    }
-
-                    if (tempMode == "DIRECT_REST") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Direct REST integration routes analysis streams straight to Google API endpoints. Fallback local heuristic model activated if empty default.",
-                                color = AxialTextSecondary,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
-                            )
-                            OutlinedTextField(
-                                value = tempKey,
-                                onValueChange = { tempKey = it },
-                                label = { Text("Gemini API Key override") },
-                                placeholder = { Text("AIzaSy...") },
-                                singleLine = true,
-                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = AxialTextPrimary),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AxialPrimary,
-                                    unfocusedBorderColor = AxialBorder,
-                                    focusedLabelColor = AxialPrimary,
-                                    unfocusedLabelColor = AxialTextSecondary
-                                ),
-                                modifier = Modifier.fillMaxWidth().testTag("api_key_override_input")
-                            )
-                        }
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                text = "The Secure API Gateway filters, shields, and encapsulates credentials. Mobile sessions route requests through your active sentinel broker node.",
-                                color = AxialTextSecondary,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
-                            )
-                            
-                            OutlinedTextField(
-                                value = tempGateUrl,
-                                onValueChange = { tempGateUrl = it },
-                                label = { Text("Gateway Endpoint URL") },
-                                placeholder = { Text("https://gateway.axial.security/v1/analyze") },
-                                singleLine = true,
-                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = AxialTextPrimary),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AxialPrimary,
-                                    unfocusedBorderColor = AxialBorder,
-                                    focusedLabelColor = AxialPrimary,
-                                    unfocusedLabelColor = AxialTextSecondary
-                                ),
-                                modifier = Modifier.fillMaxWidth().testTag("gateway_url_input")
-                            )
-
-                            OutlinedTextField(
-                                value = tempGateToken,
-                                onValueChange = { tempGateToken = it },
-                                label = { Text("Authorization JWT Bearer Token") },
-                                placeholder = { Text("ax_jwt_token...") },
-                                singleLine = true,
-                                textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = AxialTextPrimary),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = AxialPrimary,
-                                    unfocusedBorderColor = AxialBorder,
-                                    focusedLabelColor = AxialPrimary,
-                                    unfocusedLabelColor = AxialTextSecondary
-                                ),
-                                modifier = Modifier.fillMaxWidth().testTag("gateway_token_input")
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        sharedPrefs.edit()
-                            .putString("integration_mode", tempMode)
-                            .putString("user_gemini_api_key", tempKey.trim())
-                            .putString("gateway_proxy_url", tempGateUrl.trim())
-                            .putString("gateway_proxy_token", tempGateToken.trim())
-                            .apply()
-                        
-                        integrationMode = tempMode
-                        currentSavedKey = tempKey.trim()
-                        gatewayProxyUrl = tempGateUrl.trim()
-                        gatewayProxyToken = tempGateToken.trim()
-                        
-                        showApiKeyDialog = false
-                    },
-                    modifier = Modifier.testTag("api_key_override_save_button")
-                ) {
-                    Text(
-                        text = "SAVE_CONFIGURATION",
-                        color = AxialPrimary,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showApiKeyDialog = false },
-                    modifier = Modifier.testTag("api_key_override_cancel_button")
-                ) {
-                    Text(
-                        text = "DISMISS",
-                        color = AxialTextSecondary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp
-                    )
-                }
-            },
-            containerColor = AxialSurfaceElevated,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .border(BorderStroke(1.dp, AxialBorder), shape = RoundedCornerShape(24.dp))
-                .testTag("api_key_config_dialog")
-        )
-    }
-
-    if (showSecurityWarningDialog) {
-        AlertDialog(
-            onDismissRequest = {}, // Must be acknowledged to use the app
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = "Security Status Check",
-                        tint = AxialRed,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Text(
-                        text = "SECURITY COMPLIANCE SEC-C10",
-                        color = AxialTextPrimary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Security Warning: Your Gemini API key is managed securely through the Secrets panel in AI Studio and accessed in the codebase via BuildConfig. Please be aware that Android APKs can be decompiled, and embedded properties might be extracted. Do not share the generated APK file publicly to prevent potential unauthorized usage of your API properties. If preparing for an enterprise production rollout, you should transition from direct client REST calls to a secure server-side API gateway proxy.",
-                        color = AxialTextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                        textAlign = TextAlign.Justify
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "[ SYSTEM METADATA: GITHUB OPEN SOURCE ]",
-                        color = AxialPrimary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Because this codebase is pushing to a public repository, actual active keys are dynamically queried from untracked local .env configuration systems. Any assets embedded inside compiled APK units remain extractable by static decompilers. Exercise full alignment with zero-trust design.",
-                        color = AxialTextSecondary.copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        lineHeight = 16.sp,
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        sharedPrefs.edit().putBoolean("has_acknowledged_sec_warning", true).apply()
-                        showSecurityWarningDialog = false
-                    },
-                    modifier = Modifier.testTag("security_warning_acknowledge_button")
-                ) {
-                    Text(
-                        text = "ACKNOWLEDGE_PROTOCOL",
-                        color = AxialPrimary,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-            },
-            containerColor = AxialSurfaceElevated,
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .border(BorderStroke(1.dp, AxialBorder), shape = RoundedCornerShape(24.dp))
-                .testTag("security_warning_dialog")
-        )
-    }
 
     // Error handling
     LaunchedEffect(errorMessage) {
@@ -377,13 +74,45 @@ fun AxialDashboard(viewModel: AxialViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
+                .drawBehind {
+                    // Deep carbon void background base
+                    drawRect(color = Color(0xFF030304))
+                    
+                    // Top-left glowing cyber-emerald orb
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(com.example.ui.theme.AxialPrimary.copy(alpha = 0.12f), Color.Transparent),
+                            center = Offset(size.width * 0.15f, size.height * 0.25f),
+                            radius = size.minDimension * 0.55f
+                        ),
+                        radius = size.minDimension * 0.55f,
+                        center = Offset(size.width * 0.15f, size.height * 0.25f)
+                    )
+                    
+                    // Bottom-right radiant low-frequency amber orb
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(com.example.ui.theme.AxialAmber.copy(alpha = 0.08f), Color.Transparent),
+                            center = Offset(size.width * 0.85f, size.height * 0.75f),
+                            radius = size.minDimension * 0.65f
+                        ),
+                        radius = size.minDimension * 0.65f,
+                        center = Offset(size.width * 0.85f, size.height * 0.75f)
+                    )
+
+                    // Middle left soft violet bio-luminescent orb
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF8B5CF6).copy(alpha = 0.07f), Color.Transparent),
+                            center = Offset(size.width * 0.10f, size.height * 0.60f),
+                            radius = size.minDimension * 0.45f
+                        ),
+                        radius = size.minDimension * 0.45f,
+                        center = Offset(size.width * 0.10f, size.height * 0.60f)
+                    )
+                }
         ) {
-            TelemetryHeader(
-                isKeyConfigured = isKeyConfigured,
-                integrationMode = integrationMode,
-                onApiKeyClick = { showApiKeyDialog = true }
-            )
+            TelemetryHeader()
             
             Divider(
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
@@ -441,22 +170,18 @@ fun AxialDashboard(viewModel: AxialViewModel) {
 }
 
 @Composable
-fun TelemetryHeader(
-    isKeyConfigured: Boolean,
-    integrationMode: String,
-    onApiKeyClick: () -> Unit
-) {
+fun TelemetryHeader() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(AxialSurface)
+            .background(Color(0x99030304))
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(
-                text = "AXIAL // SYSTEM REPORT",
+                text = "MIND.Set // SYSTEM REPORT",
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
@@ -467,41 +192,38 @@ fun TelemetryHeader(
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(if (isKeyConfigured) AxialAccent else AxialRed, shape = RoundedCornerShape(50))
+                        .background(AxialPrimary, shape = RoundedCornerShape(50))
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 
-                val modeLabel = if (integrationMode == "SECURE_GATEWAY") "SECURE GATEWAY" else "CLIENT DIRECT"
                 Text(
-                    text = if (isKeyConfigured) "ACTIVE ROUTE: $modeLabel [ Axial-1.0.4 ]" else "PROTOCOL ENFORCEMENT PENDING [ Axial-1.0.4 ]",
+                    text = "STATUS: SAFE // CLIENT OFFLINE_SECURE [ MIND.Set-1.1.0 ]",
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
-                    color = if (isKeyConfigured) AxialTextSecondary else AxialRed.copy(alpha = 0.8f)
+                    color = AxialTextSecondary
                 )
             }
         }
         
         Box(
             modifier = Modifier
-                .clickable { onApiKeyClick() }
-                .border(1.dp, if (isKeyConfigured) AxialPrimary.copy(alpha = 0.3f) else AxialRed.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                .border(1.dp, AxialPrimary.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
                 .background(AxialSurfaceElevated)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(
-                    imageVector = Icons.Default.VpnKey,
-                    contentDescription = "Configure Key/Gateway",
-                    tint = if (isKeyConfigured) AxialPrimary else AxialRed,
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Zero-Trust Active",
+                    tint = AxialPrimary,
                     modifier = Modifier.size(12.dp)
                 )
-                val btnText = if (integrationMode == "SECURE_GATEWAY") "GATE_ROUTE" else "API_KEY_SEC"
                 Text(
-                    text = btnText,
+                    text = "OFFLINE_LOCK",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = 10.sp,
-                    color = if (isKeyConfigured) AxialPrimary else AxialRed
+                    color = AxialPrimary
                 )
             }
         }
@@ -513,13 +235,15 @@ fun AxialBottomNavbar(
     currentTab: String,
     onTabSelected: (String) -> Unit
 ) {
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        color = AxialSurface,
-        tonalElevation = 8.dp,
-        border = BorderStroke(1.dp, AxialBorder)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .frostedGlass(
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                borderAlpha = 0.20f,
+                surfaceAlpha = 0.65f
+            )
     ) {
         Row(
             modifier = Modifier
@@ -604,21 +328,8 @@ fun SignalIntakeScreen(
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        // App intro
-        Text(
-            text = "AXIAL Impartiality Engine",
-            fontFamily = FontFamily.Monospace,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = AxialPrimary,
-            modifier = Modifier.padding(bottom = 4.dp)
-        )
-        Text(
-            text = "High-fidelity semantic parsing designed to neutralize narrative bias in media text signals.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = AxialTextSecondary,
-            modifier = Modifier.padding(bottom = 20.dp)
-        )
+        // Custom corporate branding logo header
+        MindSetLogoHeader()
 
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -632,32 +343,37 @@ fun SignalIntakeScreen(
             modifier = Modifier.padding(bottom = 6.dp)
         )
 
-        OutlinedTextField(
-            value = inputSignal,
-            onValueChange = onInputChange,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
-                .testTag("signal_input_field"),
-            placeholder = {
-                Text(
-                    text = "Pasted corporate release, geopolitical editorial, or standard science facts context to probe...",
-                    color = AxialTextSecondary.copy(alpha = 0.5f),
-                    fontSize = 14.sp
-                )
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = AxialTextPrimary,
-                unfocusedTextColor = AxialTextPrimary,
-                focusedContainerColor = AxialSurface,
-                unfocusedContainerColor = AxialBg,
-                focusedBorderColor = AxialPrimary,
-                unfocusedBorderColor = AxialBorder,
-                cursorColor = AxialPrimary
-            ),
-            shape = RoundedCornerShape(8.dp),
-            textStyle = TextStyle(fontSize = 14.sp, fontFamily = FontFamily.SansSerif)
-        )
+                .frostedGlass(shape = RoundedCornerShape(8.dp), borderAlpha = 0.12f, surfaceAlpha = 0.35f)
+        ) {
+            OutlinedTextField(
+                value = inputSignal,
+                onValueChange = onInputChange,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("signal_input_field"),
+                placeholder = {
+                    Text(
+                        text = "Pasted corporate release, geopolitical editorial, or standard science facts context to probe...",
+                        color = AxialTextSecondary.copy(alpha = 0.5f),
+                        fontSize = 14.sp
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = AxialTextPrimary,
+                    unfocusedTextColor = AxialTextPrimary,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    cursorColor = AxialPrimary
+                ),
+                textStyle = TextStyle(fontSize = 14.sp, fontFamily = FontFamily.SansSerif)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -666,8 +382,7 @@ fun SignalIntakeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AxialSurface, shape = RoundedCornerShape(8.dp))
-                    .border(1.dp, AxialPrimary.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                    .frostedGlass(shape = RoundedCornerShape(8.dp), borderAlpha = 0.2f, surfaceAlpha = 0.5f)
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -738,13 +453,11 @@ fun SignalIntakeScreen(
 
 @Composable
 fun PresetCard(feed: PresetFeed, onClick: () -> Unit) {
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = AxialSurface),
-        border = BorderStroke(1.dp, AxialBorder),
-        shape = RoundedCornerShape(16.dp)
+            .frostedGlass(shape = RoundedCornerShape(16.dp), borderAlpha = 0.15f, surfaceAlpha = 0.45f)
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -847,8 +560,11 @@ fun DiagnosticForensicsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AxialSurface, shape = RoundedCornerShape(24.dp))
-                        .border(BorderStroke(1.dp, AxialBorder), shape = RoundedCornerShape(24.dp))
+                        .frostedGlass(
+                            shape = RoundedCornerShape(24.dp),
+                            borderAlpha = 0.22f,
+                            surfaceAlpha = 0.55f
+                        )
                         .padding(20.dp)
                 ) {
                     Column {
@@ -969,10 +685,10 @@ fun DiagnosticForensicsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AxialSurface, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                    .border(
-                        BorderStroke(1.dp, AxialBorder),
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                    .frostedGlass(
+                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                        borderAlpha = 0.15f,
+                        surfaceAlpha = 0.45f
                     )
                     .padding(12.dp)
             ) {
@@ -1046,10 +762,10 @@ fun DiagnosticForensicsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AxialSurface, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                        .border(
-                            BorderStroke(1.dp, AxialBorder),
-                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        .frostedGlass(
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                            borderAlpha = 0.15f,
+                            surfaceAlpha = 0.45f
                         )
                         .padding(12.dp)
                 ) {
@@ -1085,10 +801,10 @@ fun DiagnosticForensicsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AxialSurface, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                        .border(
-                            BorderStroke(1.dp, AxialBorder),
-                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        .frostedGlass(
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                            borderAlpha = 0.15f,
+                            surfaceAlpha = 0.45f
                         )
                         .padding(12.dp)
                 ) {
@@ -1117,10 +833,10 @@ fun DiagnosticForensicsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AxialSurface, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                        .border(
-                            BorderStroke(1.dp, AxialBorder),
-                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        .frostedGlass(
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                            borderAlpha = 0.15f,
+                            surfaceAlpha = 0.45f
                         )
                         .padding(12.dp)
                 ) {
@@ -1205,10 +921,10 @@ fun DiagnosticForensicsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AxialSurface, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                        .border(
-                            BorderStroke(1.dp, AxialBorder),
-                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        .frostedGlass(
+                            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                            borderAlpha = 0.15f,
+                            surfaceAlpha = 0.45f
                         )
                         .padding(12.dp)
                 ) {
@@ -1238,10 +954,10 @@ fun DiagnosticForensicsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AxialSurface, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                    .border(
-                        BorderStroke(1.dp, AxialBorder),
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                    .frostedGlass(
+                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                        borderAlpha = 0.15f,
+                        surfaceAlpha = 0.45f
                     )
                     .padding(12.dp)
             ) {
@@ -1379,15 +1095,10 @@ fun CardSegmentHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                brush = Brush.horizontalGradient(
-                    listOf(AxialSurfaceElevated, AxialSurface)
-                ),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-            )
-            .border(
-                BorderStroke(1.dp, AxialBorder),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            .frostedGlass(
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                borderAlpha = 0.20f,
+                surfaceAlpha = 0.55f
             )
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1695,7 +1406,7 @@ fun EvidenceLogList(evidenceLogs: List<EvidenceLog>) {
                 if (isSelected) {
                     Divider(color = AxialBorder, thickness = 1.dp, modifier = Modifier.padding(vertical = 6.dp))
                     Text(
-                        text = "AXIAL SANITY REPORT VECTOR:",
+                        text = "MIND.Set SANITY REPORT VECTOR:",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp,
                         color = AxialPrimary,
@@ -1806,14 +1517,12 @@ fun HistoricLedgerScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             items(historyList) { signal ->
-                Card(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .frostedGlass(shape = RoundedCornerShape(16.dp), borderAlpha = 0.15f, surfaceAlpha = 0.45f)
                         .clickable { onSelectSignal(signal) }
-                        .testTag("signal_history_card_${signal.id}"),
-                    colors = CardDefaults.cardColors(containerColor = AxialSurface),
-                    border = BorderStroke(1.dp, AxialBorder),
-                    shape = RoundedCornerShape(16.dp)
+                        .testTag("signal_history_card_${signal.id}")
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(
@@ -1885,7 +1594,7 @@ val presetFeeds = listOf(
         title = "Preset 1: Partisan Framing Test",
         typeDescription = "Exaggerated states release containing heavily biased framing & partisan drift",
         color = AxialRed,
-        text = "AXIAL NETWORK ALERT: GROUNDBREAKING BREAKTHROUGH! Today, the state's incredible, visionary, and flawless administration proudly smashed all economic records, crushing the lazy, malicious, and gridlocked opposition in a disastrous defeat. Our highly decorated industry lead, who has absolutely zero self-interest, confirmed this is a magnificent miracle of leadership. Settle into the future now before you are left in absolute ruin!"
+        text = "MIND.Set NETWORK ALERT: GROUNDBREAKING BREAKTHROUGH! Today, the state's incredible, visionary, and flawless administration proudly smashed all economic records, crushing the lazy, malicious, and gridlocked opposition in a disastrous defeat. Our highly decorated industry lead, who has absolutely zero self-interest, confirmed this is a magnificent miracle of leadership. Settle into the future now before you are left in absolute ruin!"
     ),
     PresetFeed(
         title = "Preset 2: Corporate Guarding",
@@ -1900,3 +1609,139 @@ val presetFeeds = listOf(
         text = "The second law of thermodynamics states that the total entropy of an isolated system can never decrease over time. It can remain constant in ideal reversible processes. In macroscopic systems, entropy naturally increases, leading to thermal equilibrium where no temperature differences exist."
     )
 )
+
+@Composable
+fun MindSetLogoHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 20.dp)
+            .border(1.dp, AxialBorder, RoundedCornerShape(12.dp))
+            .background(Color(0xE60F0F12))
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left Side: Glowing Brain Circuit Canvas
+        Canvas(modifier = Modifier.size(60.dp)) {
+            val width = size.width
+            val height = size.height
+            val centerX = width / 2
+            val centerY = height / 2
+
+            // Glowing background circle
+            drawCircle(
+                color = Color(0x3300E5FF),
+                radius = width * 0.45f,
+                center = Offset(centerX, centerY)
+            )
+
+            // Draw Central Split axis
+            drawLine(
+                color = Color.White,
+                start = Offset(centerX, height * 0.15f),
+                end = Offset(centerX, height * 0.85f),
+                strokeWidth = 2.5f
+            )
+
+            // Left hemisphere connection circuit paths
+            // Path 1
+            val path1 = Path().apply {
+                moveTo(centerX, height * 0.25f)
+                lineTo(centerX - width * 0.15f, height * 0.25f)
+                lineTo(centerX - width * 0.30f, height * 0.35f)
+                lineTo(centerX - width * 0.30f, height * 0.55f)
+                lineTo(centerX - width * 0.42f, height * 0.65f)
+                lineTo(centerX - width * 0.25f, height * 0.80f)
+                lineTo(centerX, height * 0.80f)
+            }
+            drawPath(
+                path = path1,
+                color = Color(0xFF00FF41),
+                style = Stroke(width = 2.5f)
+            )
+
+            // Path 2
+            val path2 = Path().apply {
+                moveTo(centerX, height * 0.40f)
+                lineTo(centerX - width * 0.20f, height * 0.40f)
+                lineTo(centerX - width * 0.20f, height * 0.60f)
+                lineTo(centerX - width * 0.10f, height * 0.70f)
+                lineTo(centerX, height * 0.70f)
+            }
+            drawPath(
+                path = path2,
+                color = Color(0xFF00E5FF),
+                style = Stroke(width = 1.5f)
+            )
+
+            // Dynamic nodes of brain-cells
+            drawCircle(Color.White, radius = 4f, center = Offset(centerX - width * 0.15f, height * 0.25f))
+            drawCircle(Color(0xFF00FF41), radius = 5f, center = Offset(centerX - width * 0.30f, height * 0.35f))
+            drawCircle(Color(0xFF00E5FF), radius = 4f, center = Offset(centerX - width * 0.42f, height * 0.65f))
+            drawCircle(Color.White, radius = 5f, center = Offset(centerX - width * 0.25f, height * 0.80f))
+            drawCircle(Color(0xFF00E5FF), radius = 3.5f, center = Offset(centerX - width * 0.20f, height * 0.40f))
+
+            // Right hemisphere horizontal segments (word cloud representation)
+            val segmentsY = listOf(0.28f, 0.35f, 0.42f, 0.49f, 0.56f, 0.63f, 0.70f, 0.77f)
+            val segmentsWidths = listOf(
+                0.22f to 0.12f, // offset, width
+                0.15f to 0.25f,
+                0.08f to 0.32f,
+                0.05f to 0.35f,
+                0.06f to 0.30f,
+                0.12f to 0.25f,
+                0.18f to 0.18f,
+                0.24f to 0.12f
+            )
+
+            segmentsY.forEachIndexed { idx, yFrac ->
+                val (offsetFrac, widthFrac) = segmentsWidths[idx]
+                val itemY = height * yFrac
+                val startX = centerX + width * offsetFrac
+                val endX = startX + width * widthFrac
+                val isCyan = idx % 2 == 0
+                val color = if (isCyan) Color(0xFF00E5FF) else Color.White
+                
+                drawLine(
+                    color = color,
+                    start = Offset(startX, itemY),
+                    end = Offset(endX, itemY),
+                    strokeWidth = 4f
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        // Right Side: Beautiful Text Stack resembling the Logo
+        Column {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "MIND",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    letterSpacing = 1.sp,
+                    fontFamily = FontFamily.SansSerif
+                )
+                Text(
+                    text = ".Set",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF00E5FF),
+                    letterSpacing = 0.5.sp,
+                    fontFamily = FontFamily.SansSerif
+                )
+            }
+            Text(
+                text = "AGI DEVELOPMENT",
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold,
+                color = AxialPrimary,
+                letterSpacing = 3.sp,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
